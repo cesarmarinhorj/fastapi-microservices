@@ -79,15 +79,3 @@ aiosqlembic -m ./auth/migrations asyncpg postgres://auth:auth@localhost:5432/aut
 aiosqlembic -m ./nms/migrations asyncpg postgres://nms:nms@localhost:5432/nms up
 ...
 ```
-© 2022 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Docs
-Contact GitHub
-Pricing
-API
-Training
-Blog
-About
