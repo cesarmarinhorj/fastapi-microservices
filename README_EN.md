@@ -1,35 +1,35 @@
-# Реализация в одном проекте набора отдельных микросервисов на базе FastAPI
+# Implementation of a set of separate FastAPI-based microservices in one project
 
-> Это пример организации кода python-модуля, демонстрация концепта решения, "вырванная" из рабочего проекта без гарантий работоспособности "из коробки", дальнейшего развития и поддержки.
+> This is an example of the organization of the python module code, a demonstration of the solution concept, "torn" from the working project without guarantees of operability "out of the box", further development and support.
 
-## Ключевые особенности
+## Key Features
 
-- Проект ориентирован на одновременную работу с отдельными сервисами и общей библиотекой в рамках одного git-репозитория
-- В общем случае библиотека устанавливается на каждом сервере в кластере системы, а контекст роли, выполняемой каждой точкой системы, определяется выполняющимся FastAPI-приложением, реализующим отдельный набор API микросервиса
-- Отсутвующие в данном примере, но важные компоненты архитектуры решения:
-    - Интеграционная шина для обмена сообщениями на базе RabbitMQ
-    - Кэширование и обмен данными между экземплярами сервисов на базе Redis
-- Весь набор микросервисов и разделяемый код скомпонован в одном Python-модуле, со следующей структурой:
-    - `nms` - модуль-обертка для отдельных сервисов и модуля с разделяемым кодом
-    - `nms.common` - модуль с разделяемым кодом
-    - `nms.auth` - сервис авторизации пользователей и управления пользователями
-    - `nms.cfg` - сервис, реализующий управление конфигурацией управляемой системы
-    - `nms.inbox` - сервис интеграции с внешней системой (интеграционный API)
-    - `nms.{...}` - каждый новый сервис
+- The project is focused on simultaneous work with separate services and a shared library within a single git repository
+- In general, the library is installed on each server in the system cluster, and the context of the role performed by each point of the system is determined by the running FastAPI application implementing a separate set of microservice APIs.
+- Missing in this example, but important components of the solution architecture:
+- Integration bus for messaging based on RabbitMQ
+- Caching and data exchange between instances of Redis-based services
+- The entire set of microservices and shared code is compiled in one Python module, with the following structure:
+- `nms` - wrapper module for individual services and shared code module
+- `nms.common` - shared code module
+- `nms.auth` - user authorization and user management service
+- `nms.cfg` - a service that implements configuration management of a managed system
+- `nms.inbox' - integration service with an external system (integration API)
+- `nms.{...}` - every new service
 
-> Пример: запуск сервиса авторизации пользователей
+> Example: launching a user authorization service
 > ```shell
 > # Development server
-> uvicorn nms.auth.main:app --host 0.0.0.0 --port 4000 --workers 1  --log-config loggers.json
-> 
+> uvicorn nms.auth.main:app --host 0.0.0.0 --port 4000 --workers 1 --log-config loggers.json
+>
 > # Production server
 > gunicorn --bind 0.0.0.0:$PORT --workers=4 nms.auth.main:app -k uvicorn.workers.UvicornWorker
 > ```
 
-## Комментарии по реализации
-Конфигурация сервиса может быть задана:
-- с помощью переменных окружения (в приоритете)
-- в локальном .env -файле
+## Comments on implementation
+The configuration of the service can be set:
+- using environment variables (in priority)
+- in the local .env file
 ```shell
 TZ=Europe/Moscow
 ENVIRONMENT=dev
@@ -40,42 +40,42 @@ DB_DWH_DSN=postgres://dwh:dwh@nms-db:5432/dwh
 JWT_SECRET_KEY=P4xCg7Dhk+Db
 ```
 
-Сервисы могут работать одновременно с разными БД, доступ к которым определяется базовым типом используемого репозитория.
+Services can work simultaneously with different databases, access to which is determined by the basic type of repository used.
 
-Репозитории для работы с БД: `nms.common.db.repositories`
+Repositories for working with the database: `nms.common.db.repositories`
 
-В зависимости от типа репозитория, пул подключений к БД создается с соответствующим DSN: `DB_NMS_DSN`, `DB_DWH_DSN` и т.д.
+Depending on the repository type, a database connection pool is created with the corresponding DSN: `DB_NMS_DSN`, `DB_DWH_DSN`, etc.
 ```python
-# типы репозиториев БД
+# types of DB repositories
 class BaseNmsRepository(BaseRepository):
-    _dsn_type = DSNType.NMS
+_dsn_type = DSNType.NMS
 
 class BaseDwhRepository(BaseRepository):
-    _dsn_type = DSNType.DWH
+_dsn_type = DSNType.DWH
 ```
 
-Пул подключений создается при вызове `get_db_repository()` (см. `nms/common/api/dependencies/database.py`)
+A connection pool is created when `get_db_repository()` is called (see `nms/common/api/dependencies/database.py `)
 
-В проекте не используется ORM, все SQL -запросы реализованы через библиотеку [aiosql](https://pypi.org/project/aiosql/)
+The project does not use ORM, all SQL queries are implemented through the [aiosql] library (https://pypi.org/project/aiosql /)
 
 
-### Инициализация окружения с помощью [Poetry](https://python-poetry.org/docs/)
+### Initializing the environment with [Poetry](https://python-poetry.org/docs /)
 
 ```shell
 poetry install
 ```
 
-### Развертывание в Docker. Подготовка и инициализация БД
+### Deployment in Docker. Database preparation and initialization
 
-1. Необходимо предварительно создать docker volume:
+1. You must first create a docker volume:
 ```shell
 docker volume create nms-db-data
 ```
-2. Выполнить первый запуск БД. При первом старте БД (пустом разделе nms-db-data) будет выполнен скрипт `db/create-db-v3.sh` , создающий необходимые базы.
+2. Run the database for the first time. At the first start of the database (an empty nms-db-data section), the script will be executed `db/create-db-v3.sh ` , which creates the necessary bases.
 ```shell
 docker-compose up -d nms-db
 ```
-3. После успешного старта БД и инициализации необходимо применить миграции для всех баз. В качестве инструмента миграции для БД в данном проекте используется пакет [aiosqlembic](https://pypi.org/project/aiosqlembic/):
+3. After the successful start of the database and initialization, it is necessary to apply migrations for all databases. The [aiosqlembic] package is used as a migration tool for the database in this project (https://pypi.org/project/aiosqlembic /):
 ```shell
 cd ./db
 aiosqlembic -m ./auth/migrations asyncpg postgres://auth:auth@localhost:5432/auth up
